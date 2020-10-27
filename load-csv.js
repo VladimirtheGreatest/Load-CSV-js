@@ -1,5 +1,6 @@
 const fs = require("fs");
 const _ = require("lodash");
+const shuffleSeed = require('shuffle-seed');
 
 function extractColumns(data, columnNames){
     const headers = _.first(data);
@@ -12,7 +13,9 @@ function extractColumns(data, columnNames){
 function loadCSV(filename,
      {converters = {},
       dataColumns = [], 
-      labelColumns = []
+      labelColumns = [],
+      shuffle = true,
+      splitTest = false
     }) {
         console.log(dataColumns);
   let data = fs.readFileSync(filename, { encoding: "utf-8" });
@@ -53,14 +56,40 @@ function loadCSV(filename,
 
   data.shift();
   labels.shift();
-  console.log(data);
-  console.log(labels);
+
+  if (shuffle) {
+    data = shuffleSeed.shuffle(data, 'phrase1');
+    labels = shuffleSeed.shuffle(labels, 'phrase1');
+  }
+
+  if (splitTest) { 
+    const trainSize = _.isNumber(splitTest) 
+    ? splitTest
+     : Math.floor(data.length / 2);
+
+     return {
+       features : data.slice(0, trainSize), //take everything from this number to the end of the array
+       labels : labels.slice(0, trainSize),
+       testFeatures : data.slice(trainSize),
+       testLabels : labels.slice(trainSize)
+     }
+  } else {
+    return {features: data, labels};   //default split 5050
+  }
+
 
 }
-loadCSV("data.csv", { 
+const { features, labels, testFeatures, testLabels} = loadCSV("data.csv", { 
     dataColumns : ['height','value'],
     labelColumns: ['passed'],
+    shuffle: true,
+    splitTest: false,  //number of records that should be in the test set
     converters : {
         passed: val => val === 'TRUE' ? true : false  //I can use custom logic here to convert values 
     }
 });
+
+console.log('Features',features);
+console.log('Labels',labels);
+console.log('Test Features',testFeatures);
+console.log('Test labels',testLabels);
